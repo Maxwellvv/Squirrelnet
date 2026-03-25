@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>终末地抽卡资源测算工具 | 保底期望双维度规划</title>
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='avatars/favicon.png') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='/avatars/favicon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -22,9 +22,9 @@
         }
     </script>
     <style type="text/tailwindcss">
-        body {background: url("{{ url_for('static', filename='avatars/bg.png') }}") no-repeat center center fixed;background-size: cover;position: relative;}
+        body {background: url("{{ url_for('static', filename='/avatars/bg.png') }}") no-repeat center center fixed;background-size: cover;position: relative;}
         body::before {content: "";position: fixed;top: 0;left: 0;width: 100%;height: 100%;background-color: rgba(255,255,255,0.1);z-index: -1;}
-        .bg-card {background: url("{{ url_for('static', filename='avatars/bg.e2e260.png') }}") no-repeat center center;background-size: cover;position: relative;z-index: 1;}
+        .bg-card {background: url("{{ url_for('static', filename='/avatars/bg.e2e260.png') }}") no-repeat center center;background-size: cover;position: relative;z-index: 1;}
         .bg-card::before {content: "";position: absolute;top: 0;left: 0;width: 100%;height: 100%;border-radius: 1.5rem;z-index: -1;pointer-events: none;}
         .hero-card {background: rgba(52,52,51,1);border-radius: 1.0rem;box-shadow: 0 12px 28px -8px rgba(25,26,26,0.18);transition: all 0.2s ease;border: 1px solid rgba(255,255,255,0.2);}
         .hero-card > * {position: relative;z-index: 2;}
@@ -56,7 +56,7 @@
         <!-- ===================== 原有抽卡工具全部代码（完全未修改） ===================== -->
         <div class="hero-card relative w-full mb-8 md:mb-10 p-1 md:p-2">
             <div class="flex items-center justify-center gap-3 flex-wrap">
-                <img src="{{ url_for('static', filename='avatars/logo.png') }}" alt="图标" class="absolute left-4 md:left-6 top-1/2 transform -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 object-contain" style="width: 120px; height: 60px;">
+                <img src="{{ url_for('static', filename='/avatars/logo.png') }}" alt="图标" class="absolute left-4 md:left-6 top-1/2 transform -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 object-contain" style="width: 120px; height: 60px;">
                 <div class="text-center">
                     <h1 class="text-[clamp(1.0rem,5vw,1.6rem)] font-extrabold text-primary mb-2 tracking-tight">终末地抽卡资源测算工具</h1>
                     <p class="text-gray-600 text-[clamp(0.5rem,2.2vw,0.8rem)] max-w-2xl mx-auto font-medium">100%保底逻辑 + 数学期望测算  保底120抽/角色  期望79.7抽/角色  1抽=500嵌晶玉</p>
@@ -200,7 +200,7 @@
                 const CARD_POOL_DAYS = 17;
                 const MONTH_CARD_DAILY_JADE = 200;
                 const ROLE_DRAWS_CONFIG = {'1': {'洛茜':30,'弭弗':50,'李芷妍':30,'庄方宜':50,'卡缪':30},'2': {'洛茜':30,'庄方宜':50,'弭弗':30,'李芷妍':50,'卡缪':30}};
-                const ROLE_AVATAR_CONFIG = {'洛茜':"{{ url_for('static', filename='avatars/luoxi.png') }}",'弭弗':"{{ url_for('static', filename='avatars/mifu.png') }}",'李芷妍':"{{ url_for('static', filename='avatars/lizhiyan.png') }}",'庄方宜':"{{ url_for('static', filename='avatars/zhuangfangyi.png') }}",'卡缪':"{{ url_for('static', filename='avatars/kamui.png') }}"};
+                const ROLE_AVATAR_CONFIG = {'洛茜':"{{ url_for('static', filename='/avatars/luoxi.png') }}",'弭弗':"{{ url_for('static', filename='/avatars/mifu.png') }}",'李芷妍':"{{ url_for('static', filename='/avatars/lizhiyan.png') }}",'庄方宜':"{{ url_for('static', filename='/avatars/zhuangfangyi.png') }}",'卡缪':"{{ url_for('static', filename='/avatars/kamui.png') }}"};
                 const ORDER_SCHEMES = {'1':['洛茜','弭弗','李芷妍','庄方宜','卡缪'],'2':['洛茜','庄方宜','弭弗','李芷妍','卡缪']};
                 const ROLE_CONFIGS = {'洛茜':{desc:'当前UP角色(+30抽)',info:'洛茜：固定卡池首位，方案1/2均额外获取30抽资源，强力主C'},'弭弗':{desc:'后续UP角色(方案1+50抽/方案2+30抽)',info:'弭弗：方案1第二位(+50抽)，方案2第三位(+30抽)，爆发输出型'},'庄方宜':{desc:'后续UP角色(方案1+50抽/方案2+50抽)',info:'庄方宜：方案1第四位(+50抽)，方案2第二位(+50抽)，全能辅助'},'李芷妍':{desc:'辅助定位(方案1+30抽/方案2+50抽)',info:'李芷妍：方案1第三位(+30抽)，方案2第四位(+50抽)，治疗核心'},'卡缪':{desc:'后续版本(+30抽)',info:'卡缪：两方案均为第五位，稳定提供30抽，站场型干员'}};
                 let currentScheme = '1';
@@ -286,7 +286,7 @@
                     Object.entries(voteMap).forEach(([name, count]) => {
                         const card = document.createElement('div');
                         card.className = 'vote-card border border-gray-200 rounded-xl p-4 text-center bg-white/70';
-                        const avatarUrl = iconMap[name] || "{{ url_for('static', filename='avatars/default.png') }}";
+                        const avatarUrl = iconMap[name] || "{{ url_for('static', filename='/avatars/default.png') }}";
                         const voted = isRoleVoted(name);
                         
                         card.innerHTML = `
