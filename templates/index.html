@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>终末地抽卡资源测算工具 | 保底期望双维度规划</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='avatars/favicon.png') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#FFFFFF',
+                        secondary: '#FFFFFF',
+                        accent: '#FFFFFF',
+                        gray: {100: '#F8FAFC',200: '#EFF6FF',300: '#CBD5E1',400: '#94A3B8',500: '#64748B',600: '#475569'}
+                    },
+                    fontFamily: {sans: ['Akrobat', 'system-ui', 'sans-serif']}
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        body {background: url("{{ url_for('static', filename='avatars/bg.png') }}") no-repeat center center fixed;background-size: cover;position: relative;}
+        body::before {content: "";position: fixed;top: 0;left: 0;width: 100%;height: 100%;background-color: rgba(255,255,255,0.1);z-index: -1;}
+        .bg-card {background: url("{{ url_for('static', filename='avatars/bg.e2e260.png') }}") no-repeat center center;background-size: cover;position: relative;z-index: 1;}
+        .bg-card::before {content: "";position: absolute;top: 0;left: 0;width: 100%;height: 100%;border-radius: 1.5rem;z-index: -1;pointer-events: none;}
+        .hero-card {background: rgba(52,52,51,1);border-radius: 1.0rem;box-shadow: 0 12px 28px -8px rgba(25,26,26,0.18);transition: all 0.2s ease;border: 1px solid rgba(255,255,255,0.2);}
+        .hero-card > * {position: relative;z-index: 2;}
+        @layer utilities {
+            .card-shadow {box-shadow: 0 8px 18px rgba(30,58,138,0.08);}
+            .role-card-active {border-color: #F97316;background-color: rgba(249,115,22,0.08);box-shadow: 0 2px 8px rgba(249,115,22,0.12);}
+            .fade-in {animation: fadeIn 0.3s ease-in-out;}
+            .radio-active {background-color: rgba(59,130,246,0.12);border-color: #6e6e6e;}
+            .avatar-hover {transition: transform 0.2s ease, filter 0.2s;}
+            .avatar-hover:hover {transform: scale(1.05);filter: brightness(0.98);}
+            @keyframes fadeIn {from { opacity: 0; transform: translateY(6px); }to { opacity: 1; transform: translateY(0); }}
+        }
+        input:focus {border-color: #3B82F6;box-shadow: 0 0 0 2px rgba(59,130,246,0.2);}
+        .role-card img {object-fit: cover;}
+        @font-face {font-family: 'Akrobat';font-weight: 600;src: url('https://bbs.hycdn.cn/public/common-config/others/fonts/Akrobat/1ff3715322c5b7a25833dc4791c00cf0.otf');font-display: swap;}
+        @font-face {font-family: 'Akrobat';font-weight: 700;src: url('https://bbs.hycdn.cn/public/common-config/others/fonts/Akrobat/bdf75e7059b24a017f9093a1cbbc8898.otf');font-display: swap;}
+
+        /* 独立投票样式（仅作用于投票区，不影响原有UI） */
+        .vote-card {transition: all 0.2s ease;}
+        .vote-card:hover {transform: translateY(-2px);box-shadow: 0 4px 12px rgba(0,0,0,0.1);}
+        .vote-btn {transition: all 0.2s;}
+        .vote-btn:hover {background-color: #F97316;color: white;}
+        .vote-btn:disabled { opacity: 0.6; cursor: not-allowed; background-color: #f3f4f6; border-color: #d1d5db; color: #9ca3af; transform: none; }
+        .vote-btn:disabled:hover { background-color: #f3f4f6; color: #9ca3af; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen py-6 px-4 md:py-8">
+    <div class="max-w-6xl mx-auto">
+        <!-- ===================== 原有抽卡工具全部代码（完全未修改） ===================== -->
+        <div class="hero-card relative w-full mb-8 md:mb-10 p-1 md:p-2">
+            <div class="flex items-center justify-center gap-3 flex-wrap">
+                <img src="{{ url_for('static', filename='avatars/logo.png') }}" alt="图标" class="absolute left-4 md:left-6 top-1/2 transform -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 object-contain" style="width: 120px; height: 60px;">
+                <div class="text-center">
+                    <h1 class="text-[clamp(1.0rem,5vw,1.6rem)] font-extrabold text-primary mb-2 tracking-tight">终末地抽卡资源测算工具</h1>
+                    <p class="text-gray-600 text-[clamp(0.5rem,2.2vw,0.8rem)] max-w-2xl mx-auto font-medium">100%保底逻辑 + 数学期望测算  保底120抽/角色  期望79.7抽/角色  1抽=500嵌晶玉</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-10 gap-6 mb-10">
+            <div class="lg:col-span-4 rounded-2xl p-6 card-shadow bg-card relative transition-all">
+                <h2 class="text-xl font-bold text-primary mb-4 flex items-center gap-2">资源输入</h2>
+                <div class="mb-6">
+                    <div class="relative">
+                        <input type="text" id="jadeInput" placeholder="例如: 12500" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent transition-all bg-white/80">
+                        <span class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-mono">嵌晶玉</span>
+                    </div>
+                    <p id="inputError" class="text-red-500 text-sm mt-1 hidden">⚠️ 仅支持0及以上整数</p>
+                </div>
+                <div class="flex items-center mb-5">
+                    <input type="checkbox" id="futureResource" class="w-5 h-5 text-secondary focus:ring-secondary rounded border-gray-300" checked>
+                    <label for="futureResource" class="ml-3 text-gray-300 select-none">计入后续资源 <span class="text-gray-400 text-xs">(按卡池顺序累加差异化抽数)</span></label>
+                </div>
+                <div class="flex items-center mb-6">
+                    <input type="checkbox" id="monthCard" class="w-5 h-5 text-secondary focus:ring-secondary rounded border-gray-300">
+                    <label for="monthCard" class="ml-3 text-gray-300 select-none">开启月卡收益 <span class="text-gray-400 text-xs">(每日200嵌晶玉，每卡池17天)</span></label>
+                </div>
+                <div class="mb-2">
+                    <label class="block text-gray-300 font-medium mb-3">卡池顺序预测方案</label>
+                    <div class="grid grid-cols-1 gap-3">
+                        <label class="card-order-option border border-gray-200 rounded-xl p-3 cursor-pointer transition-all hover:border-secondary bg-white/60">
+                            <input type="radio" name="orderScheme" value="1" class="w-5 h-5 text-secondary focus:ring-secondary mr-2" checked>
+                            <span class="text-gray-300 font-medium">方案1：洛茜 → 弭弗 → 李芷妍 → 庄方宜 → 卡缪</span>
+                        </label>
+                        <label class="card-order-option border border-gray-200 rounded-xl p-3 cursor-pointer transition-all hover:border-secondary bg-white/60">
+                            <input type="radio" name="orderScheme" value="2" class="w-5 h-5 text-secondary focus:ring-secondary mr-2">
+                            <span class="text-gray-300 font-medium">方案2：洛茜 → 庄方宜 → 弭弗 → 李芷妍 → 卡缪</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-6 rounded-2xl p-6 card-shadow bg-card relative">
+                <h2 class="text-xl font-bold text-primary mb-3 flex items-center gap-2">目标角色选择（可多选）</h2>
+                <p class="text-gray-500 text-sm mb-5">每个角色独立计算保底/期望，后续资源按卡池位置自动叠加差异化抽数</p>
+                <div id="roleCardsContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
+            </div>
+        </div>
+
+        <div class="rounded-2xl p-6 card-shadow mb-10 fade-in bg-card relative" id="resultArea">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-7">
+                <div class="border border-gray-200/80 bg-white/60 rounded-xl p-4 text-center backdrop-blur-sm">
+                    <h3 class="text-gray-500 text-sm mb-1">当前等效抽数</h3>
+                    <p class="text-2xl font-bold text-primary" id="currentDraws">0 抽</p>
+                    <p class="text-gray-500 text-xs mt-1" id="currentJade">（0 嵌晶玉）</p>
+                </div>
+                <div class="border border-gray-200/80 bg-white/60 rounded-xl p-4 text-center backdrop-blur-sm">
+                    <h3 class="text-gray-500 text-sm mb-1">后续等效抽数</h3>
+                    <p class="text-2xl font-bold text-secondary" id="futureDraws">0 抽</p>
+                    <p class="text-gray-500 text-xs mt-1" id="futureDesc">（差异化抽数累加）</p>
+                </div>
+                <div class="border border-gray-200/80 bg-white/60 rounded-xl p-4 text-center backdrop-blur-sm">
+                    <h3 class="text-gray-500 text-sm mb-1">所需抽数（100%保底）</h3>
+                    <p class="text-2xl font-bold text-accent" id="requiredDraws">0 抽</p>
+                    <p class="text-gray-500 text-xs mt-1" id="requiredDesc">（0个角色 × 120抽）</p>
+                </div>
+                <div class="border border-gray-200/80 bg-white/60 rounded-xl p-4 text-center backdrop-blur-sm">
+                    <h3 class="text-gray-500 text-sm mb-1">所需抽数（数学期望）</h3>
+                    <p class="text-2xl font-bold text-accent" id="expectDraws">0 抽</p>
+                    <p class="text-gray-500 text-xs mt-1" id="expectDesc">（0个角色 × 79.7抽）</p>
+                    <p class="text-gray-600 font-semibold text-sm mt-2" id="expectRate">达成率：0%</p>
+                </div>
+            </div>
+            <div class="rounded-xl p-5 mb-6 text-center transition-all duration-200" id="conclusionCard">
+                <p class="text-gray-600 text-base md:text-lg" id="conclusionText">请输入嵌晶玉数量并选择目标角色</p>
+                <p class="mt-2 text-sm font-mono" id="gapDetail"></p>
+                <p class="mt-1 text-sm text-purple-500" id="expectGapDetail"></p>
+            </div>
+            <div class="p-4 bg-indigo-50/50 rounded-xl border border-indigo-100">
+                <h3 class="text-gray-700 font-semibold mb-2 flex items-center gap-1">💡 智能规划建议</h3>
+                <p class="text-gray-600 text-sm" id="suggestionText">输入资源并选择角色后，将生成个性化抽卡策略</p>
+            </div>
+        </div>
+
+        <!-- ===================== 【纯追加】独立投票功能（页面最底部，与抽卡完全无关） ===================== -->
+        <div class="rounded-2xl p-6 card-shadow mb-10 fade-in bg-card relative">
+            <h2 class="text-xl font-bold text-primary mb-5 flex items-center gap-2">🎭 喜爱角色投票</h2>
+            <p class="text-gray-500 text-sm mb-6">为你喜欢的角色投票，结果实时更新（独立功能，不影响抽卡测算）</p>
+            <div id="voteContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
+        </div>
+
+        <!-- 原有页脚 -->
+        <footer class="text-center text-gray-500 text-sm mt-6">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4 bg-white/40 p-4 rounded-2xl backdrop-blur-sm">
+                <p>⚡ 数据依据：1抽=500嵌晶玉，100%保底=120抽/角色，数学期望≈79.7抽/角色；月卡每日200嵌晶玉，每卡池17天，按顺序叠加</p>
+                <button id="resetBtn" class="px-5 py-2 border border-gray-300 rounded-xl hover:bg-gray-600 transition-all shadow-sm text-primary font-medium">⟳ 重置所有选择</button>
+            </div>
+        </footer>
+
+        <!-- 原有弹窗 -->
+        <div id="infoModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden transition-all">
+            <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl animate-fade-in">
+                <h3 class="text-xl font-bold text-primary mb-3" id="modalTitle">角色说明</h3>
+                <p class="text-gray-600 mb-5 leading-relaxed" id="modalContent"></p>
+                <button id="closeModal" class="w-full px-4 py-2 bg-gradient-to-r from-secondary to-primary text-white rounded-xl hover:shadow-md transition">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // ===================== 原有抽卡JS逻辑（完全未修改，封闭运行） =====================
+            !function(){
+                const jadeInput = document.getElementById('jadeInput');
+                const inputError = document.getElementById('inputError');
+                const futureResource = document.getElementById('futureResource');
+                const monthCard = document.getElementById('monthCard');
+                const orderSchemeRadios = document.querySelectorAll('input[name="orderScheme"]');
+                const roleCardsContainer = document.getElementById('roleCardsContainer');
+                const resetBtn = document.getElementById('resetBtn');
+                const currentDraws = document.getElementById('currentDraws');
+                const currentJade = document.getElementById('currentJade');
+                const futureDraws = document.getElementById('futureDraws');
+                const futureDesc = document.getElementById('futureDesc');
+                const requiredDraws = document.getElementById('requiredDraws');
+                const requiredDesc = document.getElementById('requiredDesc');
+                const expectDraws = document.getElementById('expectDraws');
+                const expectDesc = document.getElementById('expectDesc');
+                const expectRate = document.getElementById('expectRate');
+                const conclusionCard = document.getElementById('conclusionCard');
+                const conclusionText = document.getElementById('conclusionText');
+                const gapDetail = document.getElementById('gapDetail');
+                const expectGapDetail = document.getElementById('expectGapDetail');
+                const suggestionText = document.getElementById('suggestionText');
+                const infoModal = document.getElementById('infoModal');
+                const modalTitle = document.getElementById('modalTitle');
+                const modalContent = document.getElementById('modalContent');
+                const closeModal = document.getElementById('closeModal');
+
+                let jadeValue = 0;
+                const DRAWS_PER_ROLE_GUARANTEE = 120;
+                const DRAWS_PER_ROLE_EXPECT = 79.7;
+                const CARD_POOL_DAYS = 17;
+                const MONTH_CARD_DAILY_JADE = 200;
+                const ROLE_DRAWS_CONFIG = {'1': {'洛茜':30,'弭弗':50,'李芷妍':30,'庄方宜':50,'卡缪':30},'2': {'洛茜':30,'庄方宜':50,'弭弗':30,'李芷妍':50,'卡缪':30}};
+                const ROLE_AVATAR_CONFIG = {'洛茜':"{{ url_for('static', filename='avatars/luoxi.png') }}",'弭弗':"{{ url_for('static', filename='avatars/mifu.png') }}",'李芷妍':"{{ url_for('static', filename='avatars/lizhiyan.png') }}",'庄方宜':"{{ url_for('static', filename='avatars/zhuangfangyi.png') }}",'卡缪':"{{ url_for('static', filename='avatars/kamui.png') }}"};
+                const ORDER_SCHEMES = {'1':['洛茜','弭弗','李芷妍','庄方宜','卡缪'],'2':['洛茜','庄方宜','弭弗','李芷妍','卡缪']};
+                const ROLE_CONFIGS = {'洛茜':{desc:'当前UP角色(+30抽)',info:'洛茜：固定卡池首位，方案1/2均额外获取30抽资源，强力主C'},'弭弗':{desc:'后续UP角色(方案1+50抽/方案2+30抽)',info:'弭弗：方案1第二位(+50抽)，方案2第三位(+30抽)，爆发输出型'},'庄方宜':{desc:'后续UP角色(方案1+50抽/方案2+50抽)',info:'庄方宜：方案1第四位(+50抽)，方案2第二位(+50抽)，全能辅助'},'李芷妍':{desc:'辅助定位(方案1+30抽/方案2+50抽)',info:'李芷妍：方案1第三位(+30抽)，方案2第四位(+50抽)，治疗核心'},'卡缪':{desc:'后续版本(+30抽)',info:'卡缪：两方案均为第五位，稳定提供30抽，站场型干员'}};
+                let currentScheme = '1';
+                let roleCheckedStatus = {'洛茜':false,'弭弗':false,'庄方宜':false,'李芷妍':false,'卡缪':false};
+
+                function formatThousand(num){return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g,',');}
+                function getRoleOrder(roleName){return ORDER_SCHEMES[currentScheme].indexOf(roleName)+1;}
+                function calculateFutureDraws(){if(!futureResource.checked)return 0;let total=0;const currentRoleOrder=ORDER_SCHEMES[currentScheme];const selectedRoles=Object.keys(roleCheckedStatus).filter(role=>roleCheckedStatus[role]);let maxOrder=0;selectedRoles.forEach(role=>{const order=getRoleOrder(role);if(order>maxOrder)maxOrder=order;});if(maxOrder===0)return 0;for(let i=0;i<maxOrder;i++){const roleName=currentRoleOrder[i];total+=ROLE_DRAWS_CONFIG[currentScheme][roleName];}if(monthCard.checked&&maxOrder>0){const totalDays=maxOrder*CARD_POOL_DAYS;const monthCardTotalJade=totalDays*MONTH_CARD_DAILY_JADE;const monthCardDraws=Math.floor(monthCardTotalJade/500);total+=monthCardDraws;}return total;}
+                function calculateExpectRate(totalDraws,expectDrawsValue,requiredDrawsValue){if(expectDrawsValue<=0)return '0.0%';let rate=(totalDraws/expectDrawsValue)*100;const maxRate=(requiredDrawsValue/expectDrawsValue)*100;if(rate>maxRate)rate=maxRate;return rate.toFixed(1)+'%';}
+                function renderRoleCards(){roleCardsContainer.innerHTML='';const currentRoleOrder=ORDER_SCHEMES[currentScheme];currentRoleOrder.forEach(roleName=>{const isChecked=roleCheckedStatus[roleName];const avatarUrl=ROLE_AVATAR_CONFIG[roleName];const roleDraws=ROLE_DRAWS_CONFIG[currentScheme][roleName];const card=document.createElement('div');card.className=`role-card border border-gray-200 rounded-xl p-3 text-center cursor-pointer transition-all hover:shadow-md bg-white/70 ${isChecked?'role-card-active':''}`;card.dataset.role=roleName;card.innerHTML=`<div class="w-16 h-16 mx-auto mb-2 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden shadow-sm"><img src="${avatarUrl}" alt="${roleName}" data-role="${roleName}" class="w-full h-full object-cover avatar-hover" onerror="this.onerror=null; this.parentElement.innerHTML='<span class=\'text-2xl font-bold text-secondary\'>${roleName.slice(0,2)}</span>';"></div><input type="checkbox" id="role-${roleName}" class="role-checkbox hidden" ${isChecked?'checked':''}><label for="role-${roleName}" class="cursor-pointer text-sm font-semibold block">${roleName}<br><span class="text-gray-500 text-xs font-normal">+${roleDraws}抽</span></label><button class="role-info mt-1 text-gray-400 hover:text-secondary transition"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></button>`;roleCardsContainer.appendChild(card);card.addEventListener('click',function(e){if(e.target.closest('.role-info')){modalTitle.textContent=`${roleName} · 角色详情`;modalContent.textContent=ROLE_CONFIGS[roleName].info;infoModal.classList.remove('hidden');return;}const checkbox=document.getElementById(`role-${roleName}`);checkbox.checked=!checkbox.checked;roleCheckedStatus[roleName]=checkbox.checked;checkbox.checked?card.classList.add('role-card-active'):card.classList.remove('role-card-active');calculateResult();});});}
+                function calculateResult(){const currentDrawsValue=Math.floor(jadeValue/500);const futureDrawsValue=calculateFutureDraws();const totalDrawsValue=currentDrawsValue+futureDrawsValue;const selectedRoles=Object.keys(roleCheckedStatus).filter(role=>roleCheckedStatus[role]);const selectedCount=selectedRoles.length;const requiredDrawsValue=selectedCount*DRAWS_PER_ROLE_GUARANTEE;const expectDrawsValue=selectedCount*DRAWS_PER_ROLE_EXPECT;const expectRateValue=calculateExpectRate(totalDrawsValue,expectDrawsValue,requiredDrawsValue);currentDraws.textContent=`${formatThousand(currentDrawsValue)} 抽`;currentJade.textContent=`（${formatThousand(jadeValue)} 嵌晶玉）`;futureDraws.textContent=`${formatThousand(futureDrawsValue)} 抽`;let futureDescText=`（按方案${currentScheme} 顺序累加 ${futureResource.checked?'✓':'未计入'}`;if(monthCard.checked&&futureResource.checked)futureDescText+=' + 月卡收益';futureDescText+='）';futureDesc.textContent=futureDescText;requiredDraws.textContent=`${formatThousand(requiredDrawsValue)} 抽`;requiredDesc.textContent=`（${selectedCount}个角色 × 120抽/角色）`;expectDraws.textContent=`${formatThousand(expectDrawsValue.toFixed(1))} 抽`;expectDesc.textContent=`（${selectedCount}个角色 × 79.7抽/角色）`;expectRate.textContent=`达成率：${expectRateValue}`;const gapRequired=requiredDrawsValue-totalDrawsValue;const gapExpect=expectDrawsValue-totalDrawsValue;if(selectedCount===0){conclusionText.textContent="✨ 请选择目标角色后重新测算";conclusionText.className="text-gray-500 text-lg";gapDetail.textContent="";expectGapDetail.textContent="";suggestionText.textContent="选取心仪角色，系统将自动规划抽卡策略";conclusionCard.className="rounded-xl p-5 mb-6 text-center bg-white/50 border border-gray-200";return;}if(jadeValue===0&&currentDrawsValue===0&&futureDrawsValue===0&&selectedCount>0){conclusionText.textContent="📭 当前嵌晶玉为0，请先输入数量";conclusionText.className="text-gray-500 text-lg";gapDetail.textContent="";expectGapDetail.textContent="";suggestionText.textContent="输入现有嵌晶玉数量，获取精准资源评估";conclusionCard.className="rounded-xl p-5 mb-6 text-center bg-amber-50/60 border border-amber-200";return;}if(totalDrawsValue>=requiredDrawsValue){conclusionText.textContent="🎉 资源充足！可100%获取所有选中角色";conclusionText.className="text-green-700 text-lg font-semibold";gapDetail.textContent=`✨ 超出保底所需：${formatThousand(Math.abs(gapRequired))} 抽（≈ ${formatThousand(Math.abs(gapRequired)*500)} 嵌晶玉）`;expectGapDetail.textContent=`📈 超出期望所需：${formatThousand(Math.abs(gapExpect).toFixed(1))} 抽（≈ ${formatThousand(Math.floor(Math.abs(gapExpect)*500))} 嵌晶玉）`;conclusionCard.className="rounded-xl p-5 mb-6 text-center border border-green-300 bg-green-50/70";suggestionText.textContent="✓ 资源充沛，优先拿下核心角色，剩余资源可屯给未来人权卡。";}else if(totalDrawsValue>=expectDrawsValue){conclusionText.textContent="✅ 资源达标！按数学期望可获取所有角色（保底存在缺口）";conclusionText.className="text-blue-700 text-lg font-semibold";gapDetail.textContent=`🛡️ 保底缺口：${formatThousand(Math.abs(gapRequired))} 抽（≈ ${formatThousand(Math.abs(gapRequired)*500)} 嵌晶玉）`;expectGapDetail.textContent=`🎲 超出期望：${formatThousand(Math.abs(gapExpect).toFixed(1))} 抽（≈ ${formatThousand(Math.floor(Math.abs(gapExpect)*500))} 嵌晶玉）`;conclusionCard.className="rounded-xl p-5 mb-6 text-center border border-blue-300 bg-blue-50/70";suggestionText.textContent="建议按照期望抽法，适当完成日常/周常填补少量保底差额即可。";}else{conclusionText.textContent="⚠️ 资源紧张！获取全部角色存在较大风险";conclusionText.className="text-red-700 text-lg font-semibold";gapDetail.textContent=`❗ 保底缺口：${formatThousand(Math.abs(gapRequired))} 抽（≈ ${formatThousand(Math.abs(gapRequired)*500)} 嵌晶玉）`;expectGapDetail.textContent=`📉 期望缺口：${formatThousand(Math.abs(gapExpect).toFixed(1))} 抽（≈ ${formatThousand(Math.floor(Math.abs(gapExpect)*500))} 嵌晶玉）`;conclusionCard.className="rounded-xl p-5 mb-6 text-center border border-red-300 bg-red-50/70";suggestionText.textContent="建议缩减目标角色数量，优先抽取性价比最高的核心，或等待更多福利活动。";}}
+                jadeInput.addEventListener('input',function(){this.value=this.value.replace(/[^0-9]/g,'');inputError.classList.add('hidden');jadeValue=this.value?parseInt(this.value,10):0;calculateResult();});
+                orderSchemeRadios.forEach(radio=>{radio.addEventListener('change',function(){currentScheme=this.value;document.querySelectorAll('.card-order-option').forEach(opt=>opt.classList.remove('radio-active'));this.closest('.card-order-option').classList.add('radio-active');renderRoleCards();calculateResult();});});
+                futureResource.addEventListener('change',calculateResult);
+                monthCard.addEventListener('change',calculateResult);
+                resetBtn.addEventListener('click',function(){jadeInput.value='';jadeValue=0;roleCheckedStatus={'洛茜':false,'弭弗':false,'庄方宜':false,'李芷妍':false,'卡缪':false};currentScheme='1';document.querySelectorAll('input[name="orderScheme"]').forEach(radio=>radio.checked=radio.value==='1');document.querySelectorAll('.card-order-option').forEach(opt=>opt.classList.remove('radio-active'));document.querySelector('input[name="orderScheme"][value="1"]').closest('.card-order-option').classList.add('radio-active');futureResource.checked=true;monthCard.checked=false;renderRoleCards();calculateResult();inputError.classList.add('hidden');});
+                closeModal.addEventListener('click',()=>infoModal.classList.add('hidden'));
+                infoModal.addEventListener('click',e=>{if(e.target===infoModal)infoModal.classList.add('hidden');});
+                document.querySelector('input[name="orderScheme"][value="1"]').closest('.card-order-option').classList.add('radio-active');
+                renderRoleCards();calculateResult();
+            }();
+
+            // ===================== 【纯追加】独立投票JS逻辑（localStorage限制：每个用户每个角色只能投一次） =====================
+            !function(){
+                const voteContainer = document.getElementById('voteContainer');
+                // 后端注入的初始数据
+                const initialVoteData = {{ vote_data | tojson }};
+                
+                // localStorage 存储key
+                const STORAGE_KEY = 'voted_roles';
+                // 当前缓存的最新投票数据（用于失败回滚）
+                let currentVoteData = initialVoteData;
+                
+                // 获取已投票角色列表（Set结构）
+                function getVotedSet() {
+                    try {
+                        const stored = localStorage.getItem(STORAGE_KEY);
+                        if (!stored) return new Set();
+                        const arr = JSON.parse(stored);
+                        return new Set(Array.isArray(arr) ? arr : []);
+                    } catch(e) { return new Set(); }
+                }
+                
+                // 保存已投票角色
+                function addVotedRole(roleName) {
+                    const set = getVotedSet();
+                    set.add(roleName);
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify([...set]));
+                }
+                
+                // 检查角色是否已投票
+                function isRoleVoted(roleName) {
+                    return getVotedSet().has(roleName);
+                }
+                
+                // 从后端拉取最新票数并重新渲染
+                async function fetchAndRenderVotes() {
+                    try {
+                        const response = await fetch('/get_votes');
+                        if (!response.ok) throw new Error('网络错误');
+                        const freshData = await response.json();
+                        if (freshData && freshData.voteData && freshData.icon) {
+                            currentVoteData = freshData;
+                            renderVote(currentVoteData);
+                        } else {
+                            throw new Error('数据格式异常');
+                        }
+                    } catch (err) {
+                        console.error('获取投票数据失败', err);
+                        alert('获取投票数据失败，请检查网络后刷新页面');
+                        // 失败时使用缓存数据重新渲染（恢复原状）
+                        if (currentVoteData) renderVote(currentVoteData);
+                    }
+                }
+                
+                // 独立渲染投票卡片 (localStorage限制按钮状态)
+                function renderVote(data) {
+                    if (!voteContainer) return;
+                    const voteMap = data.voteData || {};
+                    const iconMap = data.icon || {};
+                    voteContainer.innerHTML = '';
+                    
+                    Object.entries(voteMap).forEach(([name, count]) => {
+                        const card = document.createElement('div');
+                        card.className = 'vote-card border border-gray-200 rounded-xl p-4 text-center bg-white/70';
+                        const avatarUrl = iconMap[name] || "{{ url_for('static', filename='avatars/default.png') }}";
+                        const voted = isRoleVoted(name);
+                        
+                        card.innerHTML = `
+                            <div class="w-16 h-16 mx-auto mb-2 rounded-full overflow-hidden shadow-sm">
+                                <img src="${avatarUrl}" alt="${name}" class="w-full h-full object-cover" onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22%239CA3AF%22%3E%3Cpath%20d%3D%22M12%202C6.48%202%202%206.48%202%2012s4.48%2010%2010%2010%2010-4.48%2010-10S17.52%202%2012%202zm0%203c1.66%200%203%201.34%203%203s-1.34%203-3%203-3-1.34-3-3%201.34-3%203-3zm0%2014.2c-2.5%200-4.71-1.28-6-3.22.03-1.99%204-3.08%206-3.08%201.99%200%205.97%201.09%206%203.08-1.29%201.94-3.5%203.22-6%203.22z%22%2F%3E%3C%2Fsvg%3E';">
+                            </div>
+                            <h3 class="text-sm font-semibold">${name}</h3>
+                            <p class="text-xs text-gray-500">票数：<span class="text-orange-500 font-bold">${formatNumber(count)}</span></p>
+                            <button class="vote-btn w-full py-2 mt-2 border border-orange-500 rounded-lg text-xs transition-all ${voted ? 'bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed' : 'text-orange-500 hover:bg-orange-500 hover:text-white'}" data-role="${name}" ${voted ? 'disabled' : ''}>
+                                ${voted ? '✅ 已投票' : '❤️ 投一票'}
+                            </button>
+                        `;
+                        voteContainer.appendChild(card);
+                    });
+                    
+                    // 绑定投票事件（仅对未禁用的按钮绑定有效点击）
+                    document.querySelectorAll('.vote-btn:not([disabled])').forEach(btn => {
+                        btn.onclick = async (e) => {
+                            e.stopPropagation();
+                            const roleName = btn.dataset.role;
+                            // 双重校验：再次确保未投票
+                            if (isRoleVoted(roleName)) {
+                                // 若状态异常，重新刷新渲染使按钮正确禁用
+                                fetchAndRenderVotes();
+                                return;
+                            }
+                            
+                            // 锁定按钮，防止重复提交
+                            btn.disabled = true;
+                            const originalText = btn.innerHTML;
+                            btn.innerHTML = '⏳ 投票中...';
+                            
+                            try {
+                                const res = await fetch('/vote', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ role_name: roleName })
+                                });
+                                const result = await res.json();
+                                if (result.success) {
+                                    // 投票成功后记录localStorage
+                                    addVotedRole(roleName);
+                                    // 刷新投票数据，获取最新票数并重新渲染（按钮自动变为已投票禁用状态）
+                                    await fetchAndRenderVotes();
+                                    alert(`投票成功！${roleName} 当前票数：${result.new_votes}`);
+                                } else {
+                                    throw new Error(result.message || '投票失败');
+                                }
+                            } catch (err) {
+                                console.error('投票请求异常', err);
+                                alert('投票失败，请稍后重试');
+                                // 失败时重新获取最新票数，恢复按钮状态（未写入localStorage，因此恢复可投状态）
+                                await fetchAndRenderVotes();
+                            }
+                        };
+                    });
+                }
+                
+                // 独立格式化数字
+                function formatNumber(num) {
+                    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                }
+                
+                // 初始化渲染（使用后端注入数据，并结合localStorage设置按钮禁用状态）
+                if (voteContainer) {
+                    renderVote(initialVoteData);
+                }
+            }();
+        });
+    </script>
+</body>
+</html>
