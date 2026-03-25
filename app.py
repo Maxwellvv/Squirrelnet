@@ -1,80 +1,103 @@
-import json
 import os
-from flask import Flask, render_template, request, jsonify
+import sqlite3
+from flask import Flask, render_template, request, jsonify, url_for
 
 app = Flask(__name__)
-# 配置文件路径
-VOTE_FILE_PATH = "vote_data.json"
 
-# 初始化投票文件（如果不存在）
-def init_vote_file():
-    default_data = {
-        "version": "1.0",
-        "lastUpdated": "2026-03-24T00:00:00.000Z",
-        "voteData": {
-            "洛茜": 0,
-            "弭弗": 10,
-            "李芷妍": 0,
-            "庄方宜": 0,
-            "卡缪": 0
-        },
-        "icon": {
-            "洛茜": "/static/avatars/luoxi.png",
-            "弭弗": "/static/avatars/mifu.png",
-            "李芷妍": "/static/avatars/lizhiyan.png",
-            "庄方宜": "/static/avatars/zhuangfangyi.png",
-            "卡缪": "/static/avatars/kamui.png"
-        }
-    }
-    if not os.path.exists(VOTE_FILE_PATH):
-        with open(VOTE_FILE_PATH, 'w', encoding='utf-8') as f:
-            json.dump(default_data, f, ensure_ascii=False, indent=4)
+# 数据库路径（Vercel 临时目录可写）
+DB_PATH = '/tmp/votes.db'
 
-# 读取投票数据
-def get_vote_data():
-    init_vote_file()
-    with open(VOTE_FILE_PATH, 'r', encoding='utf-8') as f:
-        return json.load(f)
+# 角色列表（与前端一致）
+ROLES = ['洛茜', '弭弗', '李芷妍', '庄方宜', '卡缪']
 
-# 更新投票数据
-def update_vote_data(role_name):
-    data = get_vote_data()
-    if role_name in data["voteData"]:
-        data["voteData"][role_name] += 1
-        # 更新最后修改时间（简化版，实际可加时间戳）
-        from datetime import datetime
-        data["lastUpdated"] = datetime.utcnow().isoformat() + "Z"
-        with open(VOTE_FILE_PATH, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
-        return True
-    return False
+# 头像文件名映射（文件需放在 static/avatars/ 下）
+AVATAR_FILES = {
+    '洛茜': 'luoxi.png',
+    '弭弗': 'mifu.png',
+    '李芷妍': 'lizhiyan.png',
+    '庄方宜': 'zhuangfangyi.png',
+    '卡缪': 'kamui.png'
+}
 
-# 主页路由（渲染抽卡工具+投票区域）
+def init_db():
+    """初始化 SQLite 数据库，如果表不存在则创建，并插入初始票数"""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS votes
+                 (role TEXT PRIMARY KEY, count INTEGER)''')
+    for role in ROLES:
+        c.execute('INSERT OR IGNORE INTO votes (role, count) VALUES (?, 0)', (role,))
+    conn.commit()
+    conn.close()
+
+def get_votes_from_db():
+    """从数据库读取所有角色票数，返回字典"""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('SELECT role, count FROM votes')
+    rows = c.fetchall()
+    conn.close()
+    return {role: count for role, count in rows}
+
+def update_vote(role):
+    """为指定角色增加一票，返回更新后的票数，如果角色不存在则返回 None"""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    # 先检查角色是否存在
+    c.execute('SELECT count FROM votes WHERE role = ?', (role,))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return None
+    new_count = row[0] + 1
+    c.execute('UPDATE votes SET count = ? WHERE role = ?', (new_count, role))
+    conn.commit()
+    conn.close()
+    return new_count
+
+# 启动时初始化数据库
+init_db()
+
 @app.route('/')
 def index():
-    vote_data = get_vote_data()
+    """主页：渲染模板，并注入初始投票数据"""
+    votes = get_votes_from_db()
+    # 构建图标映射：前端需要完整的静态文件 URL
+    icon_map = {}
+    for role in ROLES:
+        if role in AVATAR_FILES:
+            icon_map[role] = url_for('static', filename=f'avatars/{AVATAR_FILES[role]}')
+        else:
+            icon_map[role] = url_for('static', filename='avatars/default.png')
+    vote_data = {
+        'voteData': votes,
+        'icon': icon_map
+    }
     return render_template('index.html', vote_data=vote_data)
 
-# 投票接口
+@app.route('/get_votes')
+def get_votes():
+    """获取最新投票数据（用于前端刷新）"""
+    votes = get_votes_from_db()
+    icon_map = {}
+    for role in ROLES:
+        if role in AVATAR_FILES:
+            icon_map[role] = url_for('static', filename=f'avatars/{AVATAR_FILES[role]}')
+        else:
+            icon_map[role] = url_for('static', filename='avatars/default.png')
+    return jsonify({
+        'voteData': votes,
+        'icon': icon_map
+    })
+
 @app.route('/vote', methods=['POST'])
 def vote():
-    role_name = request.json.get('role_name')
-    if not role_name:
-        return jsonify({"success": False, "msg": "角色名不能为空"}), 400
-    
-    if update_vote_data(role_name):
-        return jsonify({
-            "success": True,
-            "msg": "投票成功",
-            "new_votes": get_vote_data()["voteData"][role_name]
-        })
-    else:
-        return jsonify({"success": False, "msg": "角色不存在"}), 404
-
-# 获取最新投票数据接口（用于前端刷新）
-@app.route('/get_votes', methods=['GET'])
-def get_votes():
-    return jsonify(get_vote_data())
-
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    """处理投票请求"""
+    data = request.get_json()
+    role = data.get('role_name')
+    if not role or role not in ROLES:
+        return jsonify({'success': False, 'message': '无效的角色名'}), 400
+    new_votes = update_vote(role)
+    if new_votes is None:
+        return jsonify({'success': False, 'message': '角色不存在'}), 404
+    return jsonify({'success': True, 'new_votes': new_votes})
